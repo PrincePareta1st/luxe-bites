@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuxeBites | Premium Dining</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Outfit:wght@300;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --gold: #D4AF37; --bg: #050505; --card: #111; --text: #f5f5f5; }
+        * { margin:0; padding:0; box-sizing:border-box; font-family: 'Outfit', sans-serif; }
+        body { background: var(--bg); color: var(--text); padding-bottom: 80px; }
+        h1, h2 { font-family: 'Playfair Display', serif; }
+
+        /* Hero */
+        .hero { height: 60vh; background: url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200') center/cover; position: relative; display: flex; align-items: center; justify-content: center; text-align: center; }
+        .hero::after { content:''; position: absolute; inset:0; background: rgba(0,0,0,0.6); }
+        .hero-content { position: relative; z-index: 2; animation: fadeUp 1s ease; }
+        .btn-gold { background: var(--gold); color: black; padding: 12px 30px; text-decoration: none; font-weight: bold; border-radius: 50px; display: inline-block; margin-top: 20px; transition: 0.3s; }
+        .btn-gold:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(212, 175, 55, 0.4); }
+
+        /* Menu Grid */
+        .container { padding: 40px 5%; max-width: 1400px; margin: 0 auto; }
+        .filters { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 20px; margin-bottom: 20px; scrollbar-width: none; }
+        .filter-btn { background: #1a1a1a; color: white; border: 1px solid #333; padding: 10px 20px; border-radius: 30px; cursor: pointer; white-space: nowrap; }
+        .filter-btn.active { background: var(--gold); color: black; border-color: var(--gold); }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; }
+        .card { background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid #222; transition: 0.3s; }
+        .card:hover { transform: translateY(-5px); border-color: var(--gold); }
+        .card img { width: 100%; aspect-ratio: 1/1; object-fit: cover; }
+        .card-info { padding: 15px; }
+        
+        /* Floating Cart */
+        .cart-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--gold); color: black; padding: 15px 30px; border-radius: 50px; font-weight: bold; cursor: pointer; display: flex; gap: 20px; z-index: 1000; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3); }
+        
+        @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div class="hero">
+        <div class="hero-content">
+            <h1 style="font-size: 3.5rem; color: var(--gold);">LUXEBITES.</h1>
+            <p style="font-size: 1.2rem; margin-top: 10px;">Exquisite Dining Experience</p>
+            <a href="#menu" class="btn-gold">View Menu</a>
+        </div>
+    </div>
+
+    <div class="container" id="menu">
+        <div class="filters">
+            <button class="filter-btn active" onclick="filter('All')">All</button>
+            <button class="filter-btn" onclick="filter('Starters')">Starters</button>
+            <button class="filter-btn" onclick="filter('Main Course')">Main Course</button>
+            <button class="filter-btn" onclick="filter('Drinks')">Drinks</button>
+        </div>
+        
+        <div class="grid" id="grid">
+            <p>Loading exquisite dishes...</p>
+        </div>
+    </div>
+
+    <div class="cart-bar" onclick="checkout()">
+        <span><i class="fas fa-shopping-basket"></i> Your Order</span>
+        <span id="totalPrice">₹0</span>
+    </div>
+
+<script>
+    const API_URL = '/.netlify/functions/api';
+    let products = [];
+    let cartTotal = 0;
+
+    async function init() {
+        const res = await fetch(API_URL);
+        products = await res.json();
+        render(products);
+    }
+
+    function render(list) {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = "";
+        list.forEach(p => {
+            grid.innerHTML += `
+                <div class="card" onclick="addToCart(${p.price})">
+                    <img src="${p.image_url}" onerror="this.src='https://via.placeholder.com/300'">
+                    <div class="card-info">
+                        <h3 style="font-size:16px; margin-bottom:5px;">${p.name}</h3>
+                        <p style="color:#888; font-size:12px; margin-bottom:10px;">${p.description}</p>
+                        <div style="display:flex; justify-content:space-between; color:var(--gold); font-weight:bold;">
+                            <span>₹${p.price}</span>
+                            <span>+ ADD</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function filter(cat) {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+        if(cat === 'All') render(products);
+        else render(products.filter(p => p.category === cat));
+    }
+
+    function addToCart(price) {
+        cartTotal += price;
+        document.getElementById('totalPrice').innerText = "₹" + cartTotal;
+        // Simple animation
+        const bar = document.querySelector('.cart-bar');
+        bar.style.transform = "translateX(-50%) scale(1.1)";
+        setTimeout(() => bar.style.transform = "translateX(-50%) scale(1)", 200);
+    }
+
+    function checkout() {
+        if(cartTotal === 0) return alert("Cart is empty");
+        const msg = `Hello LuxeBites, I want to place an order worth ₹${cartTotal}`;
+        window.open(`https://wa.me/916377390984?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    init();
+</script>
+</body>
+</html>
