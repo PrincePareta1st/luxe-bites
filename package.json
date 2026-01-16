@@ -1,0 +1,11 @@
+{
+  "name": "luxe-bites-pro",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "mkdir -p public && echo 'Build success'"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.6.0"
+  }
+}
