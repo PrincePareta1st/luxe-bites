@@ -64,7 +64,8 @@
                     
                     <label style="font-size:12px; color:#888;">Product Image</label>
                     <input type="file" id="fileInput" accept="image/*">
-                    <input type="hidden" id="imageUrl"> <textarea id="desc" rows="3" placeholder="Short description..."></textarea>
+                    <input type="hidden" id="imageUrl"> 
+                    <textarea id="desc" rows="3" placeholder="Short description..."></textarea>
                     
                     <button type="submit" class="btn" id="submitBtn">PUBLISH ITEM</button>
                 </form>
@@ -80,8 +81,10 @@
 <script>
     // --- CONFIGURATION ---
     const API_URL = '/.netlify/functions/api';
-    const CLOUD_NAME = "Unsigned_upload";       // <-- REPLACE THIS
-    const UPLOAD_PRESET = "CLOUDINARY_URL=cloudinary://<your_api_key>:<your_api_secret>@dsd1iiqlf"; // <-- REPLACE THIS
+    
+    // MAINE YAHAN SAHI VALUES DAL DI HAIN (Aapke screenshot ke hisab se)
+    const CLOUD_NAME = "dsd1iiqlf";  
+    const UPLOAD_PRESET = "luxebite"; 
 
     // 1. Security
     function checkLogin() {
@@ -94,24 +97,32 @@
 
     // 2. Fetch Menu
     async function loadMenu() {
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        const list = document.getElementById('productList');
-        list.innerHTML = "";
-        data.forEach(p => {
-            list.innerHTML += `
-                <div class="item-row">
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <img src="${p.image_url}" style="width:40px; height:40px; border-radius:5px; object-fit:cover;">
-                        <div>
-                            <div style="font-weight:bold">${p.name}</div>
-                            <div style="font-size:12px; color:#888">₹${p.price}</div>
+        try {
+            const res = await fetch(API_URL);
+            if(!res.ok) throw new Error("API Error");
+            const data = await res.json();
+            const list = document.getElementById('productList');
+            list.innerHTML = "";
+            if(data.length === 0) list.innerHTML = "No items found";
+            
+            data.forEach(p => {
+                list.innerHTML += `
+                    <div class="item-row">
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <img src="${p.image_url}" style="width:40px; height:40px; border-radius:5px; object-fit:cover;">
+                            <div>
+                                <div style="font-weight:bold">${p.name}</div>
+                                <div style="font-size:12px; color:#888">₹${p.price}</div>
+                            </div>
                         </div>
+                        <button class="del-btn" onclick="deleteItem(${p.id})"><i class="fas fa-trash"></i></button>
                     </div>
-                    <button class="del-btn" onclick="deleteItem(${p.id})"><i class="fas fa-trash"></i></button>
-                </div>
-            `;
-        });
+                `;
+            });
+        } catch(e) {
+            console.log(e);
+            document.getElementById('productList').innerHTML = "Failed to load menu.";
+        }
     }
 
     // 3. Upload to Cloudinary
@@ -124,6 +135,12 @@
             method: 'POST',
             body: formData
         });
+        
+        if(!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error.message);
+        }
+        
         const data = await res.json();
         return data.secure_url;
     }
@@ -132,30 +149,48 @@
     document.getElementById('addForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
-        btn.innerText = "Uploading...";
+        const originalText = btn.innerText;
+        btn.innerText = "Processing...";
+        btn.disabled = true;
         
-        let url = "https://via.placeholder.com/150";
-        const file = document.getElementById('fileInput').files[0];
-        
-        if(file) {
-            url = await uploadImage(file);
+        try {
+            let url = "https://via.placeholder.com/150";
+            const file = document.getElementById('fileInput').files[0];
+            
+            if(file) {
+                btn.innerText = "Uploading Image...";
+                url = await uploadImage(file);
+            }
+
+            const data = {
+                name: document.getElementById('name').value,
+                price: parseInt(document.getElementById('price').value),
+                category: document.getElementById('category').value,
+                description: document.getElementById('desc').value,
+                image_url: url,
+                is_veg: true
+            };
+
+            btn.innerText = "Saving to Database...";
+            const res = await fetch(API_URL, { 
+                method: 'POST', 
+                body: JSON.stringify(data),
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if(!res.ok) throw new Error("Database Error");
+
+            e.target.reset();
+            alert("Item Added Successfully!");
+            loadMenu();
+
+        } catch(error) {
+            alert("Error: " + error.message);
+            console.error(error);
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
         }
-
-        const data = {
-            name: document.getElementById('name').value,
-            price: document.getElementById('price').value,
-            category: document.getElementById('category').value,
-            description: document.getElementById('desc').value,
-            image_url: url,
-            is_veg: true
-        };
-
-        btn.innerText = "Saving...";
-        await fetch(API_URL, { method: 'POST', body: JSON.stringify(data) });
-        
-        e.target.reset();
-        btn.innerText = "PUBLISH ITEM";
-        loadMenu();
     });
 
     // 5. Delete
